@@ -1,0 +1,84 @@
+// BBPD //
+`include "constants.vams"
+`include "disciplines.vams"
+
+module BBPD (d0, e01, d1, clk, v_code, v_ki_acc);
+    input d0, e01, d1, edge, clk;
+    output v_code;
+    electrical d0, e01, d1, clk, v_code, v_ki_acc;
+    parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 35p from (0:50p); // accessible range
+	parameter real trise  = 10p from (0:50p);
+	parameter real tfall  = 10p from (0:50p);
+    parameter real kp     = 1;
+    parameter real ki     = 0.1;
+    real code;
+    real ki_acc;
+
+    analog begin
+        @(initial_step) begin
+          // code = 400;
+             code = 650;
+             ki_acc = 0;
+        end
+        V(v_code) <+ (code - code%10)/10; // dithering
+
+        if (code >= 700)
+            code = code - 500;
+        else if (code < 200)
+            code = code + 500;
+
+        @ (cross(V(clk) - vtrans_clk, +1)) begin
+            if ((V(d0) > vtrans_data && V(d1) < vtrans_data)) begin     // data = 10
+                if (V(e01) > vtrans_data) begin
+                    code   = code + kp + ki_acc;                                 // dn
+                    ki_acc = ki_acc + ki;
+                end
+                else begin
+                    code = code - kp + ki_acc;                                   // up 
+                    ki_acc = ki_acc - ki;
+                end
+            end
+            else if (V(d0) < vtrans_data && V(d1) > vtrans_data) begin  // data = 01
+                if (V(e01) > vtrans_data) begin
+                    code = code - kp + ki_acc;
+                    ki_acc = ki_acc - ki;
+                end
+                else begin
+                    code = code + kp + ki_acc;
+                    ki_acc = ki_acc + ki;
+                end
+            end
+        end
+
+        // debug //
+        V(v_ki_acc) <+ ki_acc;
+
+    end
+endmodule
+
+module comparator_nedge (vin1, vin2, vclk, vout);
+	input vin1, vin2, vclk;
+	output vout;
+	electrical vin1, vin2, vclk, vout;
+	parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 35p from (0:50p); // accessible range
+	parameter real trise  = 10p from (0:50p);
+	parameter real tfall  = 10p from (0:50p);
+
+    integer x;
+
+    analog begin
+       @ (cross(V(vclk) - vtrans_clk, -1))
+         x = (V(vin1) > V(vin2));
+
+	   V(vout) <+ transition(v_high*x + v_low*!x, tdelay, trise, tfall);
+    end
+    
+endmodule

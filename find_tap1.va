@@ -1,0 +1,37 @@
+// find tap1 //
+`include "constants.vams"
+`include "disciplines.vams"
+`include "/home/m111/m111061571/hspice/EQ_Adaptation/find_h0.va"
+
+module find_tap1 (vin, h0, clk, dout1, dout2, en, tap1);
+    input vin, h0, clk, dout1, dout2, en;
+    output tap1;
+    electrical vin, h0, clk, dout1, dout2, en, tap1, data_out, cprt_out, thr;
+    parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 5p from (0:50p); // accessible range
+	parameter real trise = 10p from (0:50p);
+	parameter real tfall = 10p from (0:50p);
+    integer code;
+    real    code_out;
+
+    comparator c0 (vin, h0,  clk, cprt_out); // compare to h0
+
+    analog begin
+        code_out = (code - code%10)/10;
+        V(tap1)  <+ code_out*0.005; // resolution: 5mV
+
+        @ (cross(V(clk) - vtrans_clk, +1)) begin
+            if (V(en) > vtrans_data) begin    
+                if (V(dout1) > vtrans_data && V(dout2) < vtrans_data) begin  // 01 pattern
+                    if (V(cprt_out) < vtrans_data)
+                        code = code - 1;
+                    else
+                        code = code + 1;
+                end
+            end
+        end
+    end
+endmodule

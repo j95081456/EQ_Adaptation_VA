@@ -1,0 +1,62 @@
+// VerilogA 20241012, FFE_va, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module FFE (data_in, vclk, vout);
+	input data_in, vclk;
+	output vout;
+	electrical data_in, vclk, vout, d_m1, amp_m1, amp_0;
+
+	DFF_ffe D_pre1 (data_in, vclk, d_m1, d_m1b);
+	DFF_ffe D_main (d_m1,    vclk, d_0,  d_0b );
+	amp_X #(.gain(-0.13), .offset(1)) a_m1   (d_m1, amp_m1);
+	amp_X #(.gain( 0.87), .offset(0)) a_0    (d_0 , amp_0 );
+	adder adder (amp_m1, amp_0, vout);
+endmodule
+
+module amp_X(vin, vout);
+	input vin;
+	output vout;
+	electrical vin, vout;
+	parameter real gain = 0.4; // need to change
+	parameter real offset = 0;
+
+    analog
+        V(vout) <+ gain*(V(vin)*2 - offset);
+
+endmodule
+
+module adder(vin0, vin1, vout);
+	input  vin0, vin1;
+	output vout;
+	electrical vin0 ,vin1, vout;
+	parameter real gain = 1;
+
+    analog
+        V(vout) <+ gain*(V(vin0)+V(vin1));
+                         
+endmodule
+
+module DFF_ffe (vin, vclk, vout_q, vout_qb);
+input vin, vclk;
+output vout_q, vout_qb;
+electrical vin, vclk, vout_q, vout_qb;
+parameter real v_high = 1;
+parameter real v_low = 0;
+parameter real vtrans_clk = 0.5;
+parameter real vtrans_data = 0.5;
+parameter real tdelay = 35p from (0:50p); // accessible range
+parameter real trise  = 10p from (0:50p);
+parameter real tfall  = 10p from (0:50p);
+
+    integer x;
+
+    analog begin
+       @ (cross(V(vclk) - vtrans_clk, +1))
+          x = (V(vin) > vtrans_data);
+       V(vout_q) <+ transition(v_high*x + v_low*!x, tdelay, trise, tfall);
+       V(vout_qb) <+ transition(v_high*!x + v_low*x, tdelay, trise, tfall);
+    end
+
+endmodule

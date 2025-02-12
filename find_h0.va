@@ -1,0 +1,54 @@
+// find h0, use DFE output //
+`include "constants.vams"
+`include "disciplines.vams"
+
+module find_h0 (vin, clk, dout1, h0);
+    input vin, clk, dout1;
+    output h0;
+    electrical vin, clk, dout1, h0, cprt_out, thr;
+    parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 5p from (0:50p); // accessible range
+	parameter real trise = 10p from (0:50p);
+	parameter real tfall = 10p from (0:50p);
+    integer code;
+
+    comparator c0 (vin, h0,  clk, cprt_out);
+
+    analog begin
+        V(h0)  <+ code*0.005; // resolution: 5mV
+
+        @ (cross(V(clk) - vtrans_clk, +1)) begin
+            if (V(dout1) > vtrans_data) begin
+                if (V(cprt_out) > vtrans_data)
+                    code = code + 1;
+                else
+                    code = code - 1;
+            end
+        end
+    end
+endmodule
+
+module comparator (vin1, vin2, vclk, vout);
+	input vin1, vin2, vclk;
+	output vout;
+	electrical vin1, vin2, vclk, vout;
+	parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 5p from (0:50p); // accessible range
+	parameter real trise = 10p from (0:50p);
+	parameter real tfall = 10p from (0:50p);
+
+    integer x;
+
+    analog begin
+       @ (cross(V(vclk) - vtrans_clk, +1))
+          x = (V(vin1) > V(vin2));
+	     V(vout) <+ transition(v_high*x + v_low*!x, tdelay, trise, tfall);
+    end
+    
+endmodule

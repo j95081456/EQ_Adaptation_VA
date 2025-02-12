@@ -1,0 +1,75 @@
+// PI //
+`include "constants.vams"
+`include "disciplines.vams"
+
+module PI (ck_in, v_code, ck_out);
+    input ck_in, v_code;
+    output ck_out;
+    electrical ck_in, v_code, ck_out;
+    parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 5p from (0:50p); // accessible range
+	parameter real trise =  5p from (0:50p);
+	parameter real tfall =  5p from (0:50p);
+    integer x;
+
+    analog begin
+        @ (cross(V(ck_in) - vtrans_clk, 0)) begin
+
+            if (V(ck_in) > vtrans_clk)
+                x = 1;
+            else
+                x = 0;
+        end
+        V(ck_out) <+ transition(v_high*x + v_low*!x, V(v_code)*1p, trise, tfall);
+    end
+endmodule
+
+module PI_add (ck_mid, ck_first, ck_end, v_code, ck_pi);
+    input ck_mid, ck_first, ck_end, v_code;
+    output ck_pi;
+    electrical ck_mid, ck_first, ck_end, v_code;
+    parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 5p from (0:50p); // accessible range
+	parameter real trise =  5p from (0:50p);
+	parameter real tfall =  5p from (0:50p);
+    integer x;
+
+    analog begin
+        @ (cross(V(ck_mid) - vtrans_clk, 0)) begin
+            if (V(v_code) != 20 && V(v_code) != 69) begin
+                if (V(ck_mid) > vtrans_clk)
+                    x = 1;
+                else
+                    x = 0;
+            end
+        end
+
+        @ (cross(V(ck_first) - vtrans_clk, 0)) begin
+            if (V(v_code) == 20) begin
+                if (V(ck_first) > vtrans_clk)
+                    x = 1;
+                else
+                    x = 0;
+            end
+        end
+
+        @ (cross(V(ck_end) - vtrans_clk, 0)) begin
+            if (V(v_code) == 69) begin
+                if (V(ck_end) > vtrans_clk)
+                    x = 1;
+                else
+                    x = 0;
+            end
+        end
+
+        V(ck_pi) <+ transition(v_high*x + v_low*!x, tdelay, trise, tfall);
+
+    end
+
+endmodule

@@ -1,0 +1,81 @@
+`include "discipline.h"
+`include "constants.h"
+
+// $Date: 1997/08/28 05:56:35 $
+// $Revision: 1.1 $
+//
+//
+// Based on the OVI Verilog-A Language Reference Manual, version 1.0 1996
+//
+//
+ 
+`define PI  	3.14159265358979323846264338327950288419716939937511
+
+
+
+//--------------------
+// vco
+//
+// -  voltage-controlled oscillator
+//
+// vin:		ocillation controlling voltage [V,A]
+// vout:	[V,A]
+//
+// INSTANCE parameters
+//    amp         = amplitude of the output signal [V]
+//    center_freq = centre frequency of oscillation freq when 'vin' = 0 [Hz]
+//    vco_gain    = oscillator conversion gain [Hz/volt]
+//
+// MODEL parameters
+//    {none}
+//
+
+module VCO_VA2(vin, vout);
+	input vin;
+	output vout;
+	electrical vin, vout;
+	parameter real amp = 0.5;
+	parameter real center_freq = 20G;
+	parameter real vco_gain = 20e+6;         //*** 20kHz/mV ***// 
+	parameter integer steps_per_period = 32; // 02/20/2004, Fangyi
+
+//   real wc; 	  		// center freq in rad/s
+
+//   real phase_lin;		// wc*time component of phase
+//   real phase_nonlin;		// the idt(k*f(t)) of phase
+
+//   integer num_cycles;		// number of cycles in linear phase component
+
+   real phase; // 02/20/2004, Fangyi
+   real inst_freq;		// instanteous frequency
+
+   analog begin
+
+//      @ ( initial_step ) begin
+//          wc = 2 * `PI * center_freq;
+//      end
+
+      //
+      // linear portion is calculated so that it remains in the +/- 2`PI range
+      // This is to ensure it's value doesn't get too large and cause rounding
+      // problems for calculation of the phase.
+      //
+//      phase_lin = wc * $abstime;
+//      num_cycles = phase_lin / (2*`PI);
+//      phase_lin = phase_lin - num_cycles * 2 * `PI;
+
+//      phase_nonlin = 2 * `PI * vco_gain * idt ( V(vin), 0);
+
+//      V(vout) <+ amp * sin (phase_lin + phase_nonlin);
+
+      //
+      // ensure that modulator output recalculated soon.
+      //
+      inst_freq = center_freq + vco_gain * V(vin);
+      $bound_step (1.0 / (steps_per_period*inst_freq));
+  
+      phase = idtmod(inst_freq,0,1);
+      V(vout) <+ amp * sin (2 * `PI * phase) + 0.45;
+   end
+endmodule
+

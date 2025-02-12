@@ -1,0 +1,80 @@
+// VerilogA for 22_0430, DFE, veriloga
+
+`include "constants.vams"
+`include "disciplines.vams"
+
+module DFE(vin, vclk, tap1, tap2, add_out, decision1, decision2, decision3);
+	input vin, vclk, tap1, tap2;
+	output add_out, decision1, decision2;
+	electrical vin, vclk, tap1, tap2, vin2, vin3, add_out, decision1, decision2, decision3;
+	electrical nop1, nop2, nop3;
+	adder3 add1(vin, vin2, vin3, add_out);
+	DFF_dfe D1(add_out,   vclk, decision1, nop1);
+	DFF_dfe D2(decision1, vclk, decision2, nop2);
+	DFF_dfe D3(decision2, vclk, decision3, nop3);
+	// amp_X #(.gain(-0.140), .offset(1)) amp1(decision1, vin2);
+	// amp_X #(.gain(-0.080), .offset(1)) amp2(decision2, vin3);
+	amp_X1 #(  				  .offset(1)) amp1(decision1, vin2, tap1);
+	amp_X1 #(  				  .offset(1)) amp2(decision2, vin3, tap2);
+
+endmodule
+
+module amp_X1(vin, vout, gain);
+	input vin, gain;
+	output vout;
+	electrical vin, vout, gain;
+	parameter real offset = 0;
+
+    analog
+        V(vout) <+ V(gain)*(V(vin)*2 - offset);
+        
+endmodule
+
+module amp_X(vin, vout);
+	input vin;
+	output vout;
+	electrical vin, vout;
+	parameter real gain = 0.4; // need to change
+	parameter real offset = 0;
+
+    analog
+        V(vout) <+ gain*(V(vin)*2 - offset);
+        
+endmodule
+
+module adder3(vin1, vin2, vin3, vout);
+	input vin1, vin2, vin3;
+	output vout;
+	electrical vin1, vin2, vin3, vout;
+	parameter real gain1 = 1;
+	parameter real gain2 = 1;
+	parameter real gain3 = 1;
+
+    analog 
+        V(vout) <+ gain1*V(vin1) + gain2*V(vin2) + gain3*V(vin3);
+        
+endmodule
+
+module DFF_dfe (vin, vclk, vout_q, vout_qb);
+	input vin, vclk;
+	output vout_q, vout_qb;
+	electrical vin, vclk, vout_q, vout_qb;
+	parameter real v_high = 1;
+	parameter real v_low = 0;
+	parameter real vtrans_clk = 0.5;
+	parameter real vtrans_data = 0.5;
+	parameter real tdelay = 35p from (0:50p); // accessible range
+	parameter real trise  = 10p from (0:50p);
+	parameter real tfall  = 10p from (0:50p);
+
+    integer x;
+
+    analog begin
+       @ (cross(V(vclk) - vtrans_clk, +1))
+          x = (V(vin) > vtrans_data);
+	     V(vout_q)  <+ transition(v_high*x + v_low*!x, tdelay, trise, tfall);
+         V(vout_qb) <+ transition(v_high*!x + v_low*x, tdelay, trise, tfall);
+    end
+    
+endmodule
+
